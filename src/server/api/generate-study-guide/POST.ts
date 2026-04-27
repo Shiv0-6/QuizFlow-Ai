@@ -7,7 +7,7 @@ function getSecret(key: string): string | undefined {
   if (process.env[key]) return process.env[key];
   try {
     const envFile = fs.readFileSync(path.resolve(process.cwd(), '.env'), 'utf-8');
-    const match = envFile.match(new RegExp(`^${key}=(.*)$`, 'm'));
+    const match = envFile.match(new RegExp(`^${key}\\s*=\\s*(.*)$`, 'm'));
     return match ? match[1].trim() : undefined;
   } catch {
     return undefined;
@@ -46,19 +46,20 @@ export default async function handler(req: Request, res: Response) {
   const systemPrompt = `You are an expert AI tutor specialized in distilling complex, long-form content (like PDF notes) into high-impact, structured study guides.
   
 Goal:
-- Take extensive text (potentially many pages) and condense it into a clear 1-2 page equivalent summary.
-- Organize information into logical blocks and sections.
-- Focus on "must-know" information, definitions, and relationships between concepts.
+- Analyze the entire provided text and identify ALL major topics, sub-topics, and key concepts.
+- Organize these into logical sections. **IMPORTANT: Do not skip any significant topics found in the text.**
+- Distill the information for each topic into a clear, concise format suitable for quick revision, but ensure full coverage of the source material.
+- Focus on definitions, core principles, and relationships between concepts.
 - Use engaging, educational language.
 
 Rules:
 - Return ONLY a valid JSON object.
 - Avoid markdown formatting outside of the JSON values.`;
 
-  const userPrompt = `Generate a comprehensive study guide from this text/topic:
+  const userPrompt = `Generate a comprehensive and complete study guide from this text/topic. Ensure that every single topic and important sub-point mentioned in the text is included as a section in the guide:
 
 """
-${text.slice(0, 4000)}
+${text.slice(0, 50000)}
 """
 
 Return ONLY a JSON object with this exact structure:
@@ -67,11 +68,11 @@ Return ONLY a JSON object with this exact structure:
   "overview": "A brief 2-3 sentence overview of the topic",
   "sections": [
     {
-      "heading": "Section Heading",
-      "content": "Detailed explanation for this section (markdown supported for bold/italics/lists)"
+      "heading": "Section Heading (Topic Name)",
+      "content": "Comprehensive yet concise explanation for this topic (markdown supported for bold/italics/lists). Ensure all sub-points of this topic are covered."
     }
   ],
-  "keyConcepts": ["Concept 1", "Concept 2", "..."],
+  "keyConcepts": ["Concept 1", "Concept 2", "... (Include all key terms/definitions)"],
   "summary": "Final wrap-up summary",
   "estimatedReadingTime": "X mins"
 }`;

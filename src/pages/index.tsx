@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, Zap, AlertCircle, RefreshCw, 
-  BookOpen, X, ArrowRight, Share2, Check,
-  FilePlus
+  BookOpen, X, Share2, Check,
+  FilePlus, LayoutGrid, Flame, Brain
 } from 'lucide-react';
+import { getProgress, getXpLevel, recordGuideCreation } from '../lib/progress';
 
 // ─── Question Parser ──────────────────────────────────────────────────
 interface ParsedQuestion {
@@ -59,7 +60,6 @@ function parseQuestions(text: string): ParsedQuestion[] | null {
 function HeroSection() {
   const navigate = useNavigate();
   const [text, setText] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [error, setError] = useState('');
@@ -68,6 +68,8 @@ function HeroSection() {
   const [studyGuide, setStudyGuide] = useState<any>(null);
   const [guideShareId, setGuideShareId] = useState<string | null>(null);
   const [isSavingGuide, setIsSavingGuide] = useState(false);
+  // Progress state
+  const [progress, setProgress] = useState(() => getProgress());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,6 +108,9 @@ function HeroSection() {
         }
         setStudyGuide(data);
         setIsCreating(false);
+        // Record guide creation for XP/streak
+        const updated = recordGuideCreation();
+        setProgress(updated);
         return;
       } catch (err) {
         setError('Network error. Please try again.');
@@ -243,10 +248,26 @@ function HeroSection() {
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-6 py-20 bg-background overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+      {/* Aurora Background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <motion.div
+          className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full blur-[160px]"
+          style={{ background: 'rgba(99,102,241,0.08)' }}
+          animate={{ x: [0, 30, -20, 0], y: [0, -20, 30, 0], scale: [1, 1.1, 0.95, 1] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full blur-[160px]"
+          style={{ background: 'rgba(59,130,246,0.07)' }}
+          animate={{ x: [0, -30, 20, 0], y: [0, 20, -30, 0], scale: [1, 0.95, 1.1, 1] }}
+          transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+        />
+        <motion.div
+          className="absolute top-3/4 left-1/2 w-[300px] h-[300px] rounded-full blur-[120px]"
+          style={{ background: 'rgba(139,92,246,0.06)' }}
+          animate={{ x: [0, 20, -10, 0], y: [0, -10, 20, 0] }}
+          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut', delay: 4 }}
+        />
       </div>
 
       <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center">
@@ -255,11 +276,35 @@ function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
+          {/* XP / Streak Badge */}
+          {(progress.streak > 0 || progress.xp > 0) && (() => {
+            const lvl = getXpLevel(progress.xp);
+            return (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+                className="inline-flex items-center gap-4 mb-6 px-5 py-2.5 rounded-full border"
+                style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.2)' }}
+              >
+                {progress.streak > 0 && (
+                  <span className="flex items-center gap-1.5 text-sm font-black text-orange-400">
+                    <Flame size={14} fill="currentColor" /> {progress.streak} day streak
+                  </span>
+                )}
+                {progress.streak > 0 && progress.xp > 0 && <span className="w-px h-4 bg-white/10" />}
+                <span className="flex items-center gap-1.5 text-sm font-black text-indigo-300">
+                  <Zap size={13} fill="currentColor" /> {progress.xp} XP · {lvl.title}
+                </span>
+              </motion.div>
+            );
+          })()}
+
           <h1 className="text-6xl md:text-8xl font-black text-white mb-6 tracking-tight">
             Learn <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-400">Anything.</span>
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto font-medium">
-            Paste notes, topics, or PDFs to transform them into interactive study guides and quizzes instantly.
+            Paste notes, topics, or PDFs — get AI study guides, quizzes, flashcards and quick revision blocks in seconds.
           </p>
         </motion.div>
 
@@ -304,6 +349,30 @@ function HeroSection() {
           {error && (
             <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2 text-red-400 text-sm font-bold bg-red-400/10 px-4 py-2 rounded-xl border border-red-400/20">
               <AlertCircle size={14} /> {error}
+            </motion.div>
+          )}
+
+          {/* Weak Concepts Quick-Recall Chip */}
+          {progress.weakConcepts.length > 0 && !text && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-3 p-4 rounded-2xl border"
+              style={{ background: 'rgba(245,158,11,0.05)', borderColor: 'rgba(245,158,11,0.2)' }}
+            >
+              <Brain size={16} className="text-amber-400 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-amber-400 uppercase tracking-widest mb-2">Review Weak Topics</p>
+                <div className="flex flex-wrap gap-2">
+                  {progress.weakConcepts.slice(0, 8).map((concept) => (
+                    <button
+                      key={concept}
+                      onClick={() => { setText(concept); setMode('study'); }}
+                      className="px-3 py-1 rounded-full text-xs font-bold transition-all hover:scale-105"
+                      style={{ background: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.25)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.25)' }}
+                    >{concept}</button>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -356,9 +425,17 @@ function HeroSection() {
                 </div>
                 <div className="flex items-center gap-3">
                   {guideShareId ? (
-                    <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/guide/${guideShareId}`); alert('Copied!'); }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm font-bold">
-                      <Check size={14} /> Copied!
-                    </button>
+                    <>
+                      <Link 
+                        to={`/guide/${guideShareId}/revision`}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-sm font-bold hover:bg-indigo-500/20 transition-all"
+                      >
+                        <LayoutGrid size={14} /> Revision
+                      </Link>
+                      <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/guide/${guideShareId}`); alert('Copied!'); }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm font-bold">
+                        <Check size={14} /> Copied!
+                      </button>
+                    </>
                   ) : (
                     <button onClick={handleShareGuide} disabled={isSavingGuide} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-bold hover:bg-white/10 transition-all disabled:opacity-50">
                       {isSavingGuide ? <RefreshCw size={14} className="animate-spin" /> : <Share2 size={14} />} Share
@@ -412,12 +489,18 @@ function HeroSection() {
 
 function LearnByTopicSection() {
   const topics = [
-    { label: 'Science', emoji: '🔬' },
-    { label: 'History', emoji: '📜' },
-    { label: 'Math', emoji: '📐' },
-    { label: 'Coding', emoji: '💻' },
-    { label: 'Literature', emoji: '📚' },
-    { label: 'Business', emoji: '💼' },
+    { label: 'Science', emoji: '🔬', color: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)' },
+    { label: 'History', emoji: '📜', color: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)' },
+    { label: 'Math', emoji: '📐', color: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.2)' },
+    { label: 'Coding', emoji: '💻', color: 'rgba(99,102,241,0.1)', border: 'rgba(99,102,241,0.2)' },
+    { label: 'Literature', emoji: '📚', color: 'rgba(236,72,153,0.1)', border: 'rgba(236,72,153,0.2)' },
+    { label: 'Business', emoji: '💼', color: 'rgba(14,165,233,0.1)', border: 'rgba(14,165,233,0.2)' },
+    { label: 'Biology', emoji: '🧬', color: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.2)' },
+    { label: 'Physics', emoji: '⚛️', color: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.2)' },
+    { label: 'Chemistry', emoji: '🧪', color: 'rgba(251,146,60,0.1)', border: 'rgba(251,146,60,0.2)' },
+    { label: 'Geography', emoji: '🌍', color: 'rgba(20,184,166,0.1)', border: 'rgba(20,184,166,0.2)' },
+    { label: 'Economics', emoji: '📈', color: 'rgba(250,204,21,0.1)', border: 'rgba(250,204,21,0.2)' },
+    { label: 'Philosophy', emoji: '🤔', color: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.2)' },
   ];
   const handleTopicClick = (topic: string) => {
     window.dispatchEvent(new CustomEvent('prefill-topic', { detail: topic }));
@@ -425,28 +508,91 @@ function LearnByTopicSection() {
   };
 
   return (
-    <section className="py-24 px-6 bg-black/20">
+    <section className="py-24 px-6" style={{ background: 'rgba(0,0,0,0.2)' }}>
       <div className="container mx-auto max-w-5xl">
-        <div className="flex items-center gap-4 mb-16 overflow-hidden">
-           <div className="h-px flex-1 bg-white/5" />
-           <h2 className="text-sm font-black text-white/20 uppercase tracking-[0.3em] whitespace-nowrap">Popular Topics</h2>
-           <div className="h-px flex-1 bg-white/5" />
+        <div className="flex items-center gap-4 mb-12">
+          <div className="h-px flex-1 bg-white/5" />
+          <h2 className="text-sm font-black text-white/20 uppercase tracking-[0.3em] whitespace-nowrap">Quick Start Topics</h2>
+          <div className="h-px flex-1 bg-white/5" />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          {topics.map((t) => (
-            <button 
-              key={t.label} 
-              onClick={() => handleTopicClick(t.label)} 
-              className="group p-8 rounded-3xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all flex flex-col items-center gap-4"
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+          {topics.map((t, i) => (
+            <motion.button
+              key={t.label}
+              onClick={() => handleTopicClick(t.label)}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              className="group p-5 rounded-2xl border flex flex-col items-center gap-3 transition-all"
+              style={{ background: t.color, borderColor: t.border }}
             >
-              <div className="text-3xl group-hover:scale-125 transition-transform">{t.emoji}</div>
-              <div className="text-xs font-black text-white/40 group-hover:text-white transition-colors tracking-widest uppercase">{t.label}</div>
-            </button>
+              <div className="text-2xl group-hover:scale-110 transition-transform duration-200">{t.emoji}</div>
+              <div className="text-[10px] font-black text-white/50 group-hover:text-white transition-colors tracking-widest uppercase leading-none">{t.label}</div>
+            </motion.button>
           ))}
         </div>
-        <p className="mt-12 text-center text-[10px] font-black text-white/10 uppercase tracking-[0.4em]">
-          Choose a topic to generate a custom study guide or practice quiz
-        </p>
+      </div>
+    </section>
+  );
+}
+
+function FeaturesSection() {
+  const features = [
+    {
+      icon: '🧠',
+      title: 'AI Study Guides',
+      desc: 'Paste any text or PDF and get a structured, comprehensive guide organized by topic instantly.',
+      color: 'from-indigo-500/20 to-violet-500/10',
+      border: 'border-indigo-500/20',
+    },
+    {
+      icon: '⚡',
+      title: 'Practice Quizzes',
+      desc: 'Auto-generated MCQs from your material. Leaderboards, timers, shuffling — fully configurable.',
+      color: 'from-blue-500/20 to-cyan-500/10',
+      border: 'border-blue-500/20',
+    },
+    {
+      icon: '🃏',
+      title: 'Flashcard Mode',
+      desc: 'Flip through key concepts with 3D flashcards. Mark what you know and review what you don\'t.',
+      color: 'from-violet-500/20 to-purple-500/10',
+      border: 'border-violet-500/20',
+    },
+    {
+      icon: '⚡',
+      title: 'Quick Revision',
+      desc: 'See all your topics side-by-side in compact blocks. Perfect for a rapid review before exams.',
+      color: 'from-emerald-500/20 to-green-500/10',
+      border: 'border-emerald-500/20',
+    },
+  ];
+  return (
+    <section className="py-24 px-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-16">
+          <p className="text-xs font-black text-indigo-400/60 uppercase tracking-[0.4em] mb-4">Everything You Need</p>
+          <h2 className="text-4xl md:text-5xl font-black text-white">One Platform.<br /><span className="text-indigo-400">Every Learning Mode.</span></h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {features.map((f, i) => (
+            <motion.div
+              key={f.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.08 }}
+              className={`p-8 rounded-[2rem] bg-gradient-to-br border relative overflow-hidden group ${f.color} ${f.border}`}
+            >
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"
+                style={{ background: 'radial-gradient(circle at 70% 50%, rgba(255,255,255,0.03), transparent 70%)' }} />
+              <div className="text-4xl mb-4">{f.icon}</div>
+              <h3 className="text-xl font-black text-white mb-2">{f.title}</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">{f.desc}</p>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -458,9 +604,16 @@ export default function HomePage() {
       <title>QuizFlow AI — Personal Learning Platform</title>
       <HeroSection />
       <LearnByTopicSection />
-      <div className="py-24 text-center">
-        <p className="text-xs font-bold text-white/10 uppercase tracking-[0.5em]">The Future of Personal Learning</p>
-      </div>
+      <FeaturesSection />
+      <footer className="py-16 text-center border-t" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-500 flex items-center justify-center">
+            <Zap size={13} className="text-white" fill="white" />
+          </div>
+          <span className="font-black text-white">QuizFlow <span className="text-indigo-400">AI</span></span>
+        </div>
+        <p className="text-xs text-white/10 font-bold uppercase tracking-[0.4em]">The Future of Personal Learning</p>
+      </footer>
     </>
   );
 }

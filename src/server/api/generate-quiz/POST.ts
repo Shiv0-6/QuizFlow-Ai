@@ -7,7 +7,7 @@ function getSecret(key: string): string | undefined {
   if (process.env[key]) return process.env[key];
   try {
     const envFile = fs.readFileSync(path.resolve(process.cwd(), '.env'), 'utf-8');
-    const match = envFile.match(new RegExp(`^${key}=(.*)$`, 'm'));
+    const match = envFile.match(new RegExp(`^${key}\\s*=\\s*(.*)$`, 'm'));
     return match ? match[1].trim() : undefined;
   } catch {
     return undefined;
@@ -58,6 +58,7 @@ export default async function handler(req: Request, res: Response) {
 
 Rules:
 - Generate exactly ${questionCount} questions
+- **Ensure the questions cover ALL major topics and sub-topics found in the text.**
 - Each question must have exactly 4 answer options
 - Only one option is correct
 - The correct field is the 0-based index of the correct option
@@ -66,10 +67,10 @@ Rules:
 - Vary question difficulty: mix easy, medium, and hard questions
 - Return ONLY a valid JSON array, no markdown, no extra text, no code fences`;
 
-  const userPrompt = `Generate ${questionCount} multiple-choice quiz questions from this text:
+  const userPrompt = `Generate ${questionCount} multiple-choice quiz questions from this text. Ensure the questions are distributed across all the different topics mentioned in the text:
 
 """
-${text.slice(0, 4000)}
+${text.slice(0, 50000)}
 """
 
 Return ONLY a JSON array with this exact structure (no markdown, no code fences):

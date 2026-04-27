@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   CheckCircle2, XCircle, ArrowRight, Zap, Clock,
   Trophy, Copy, Check, AlertCircle, Medal, Timer,
-  Lightbulb, BarChart3, Star,
+  Lightbulb, BarChart3, Keyboard,
 } from 'lucide-react';
+import { recordQuizCompletion } from '../../lib/progress';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface QuizSettings {
@@ -237,6 +238,14 @@ function NameEntry({ quiz, onStart }: { quiz: QuizData; onStart: (name: string) 
         ))}
       </motion.div>
 
+      {/* Estimated completion time */}
+      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }}
+        className="text-sm mb-6" style={{ color: '#6B7FA8' }}>
+        {settings.timeLimitSeconds > 0
+          ? `~${Math.ceil((quiz.questionCount * settings.timeLimitSeconds) / 60)} min to complete`
+          : `~${Math.ceil(quiz.questionCount * 0.5)} min estimated`}
+      </motion.p>
+
       {/* Name input */}
       {settings.requireName ? (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
@@ -420,6 +429,37 @@ function AnswerReview({ review }: { review: ReviewItem[] }) {
   );
 }
 
+// ─── Animated Score Ring ─────────────────────────────────────────────
+function ScoreRing({ pct, isGreat, isOk }: { pct: number; isGreat: boolean; isOk: boolean }) {
+  const r = 52;
+  const circ = 2 * Math.PI * r;
+  const color = isGreat ? '#10B981' : isOk ? '#3B82F6' : '#EF4444';
+  return (
+    <div className="relative w-36 h-36 flex items-center justify-center mb-6 mx-auto">
+      <svg width="144" height="144" className="absolute inset-0 -rotate-90">
+        <circle cx="72" cy="72" r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+        <motion.circle
+          cx="72" cy="72" r={r} fill="none" stroke={color} strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          initial={{ strokeDashoffset: circ }}
+          animate={{ strokeDashoffset: circ * (1 - pct / 100) }}
+          transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
+        />
+      </svg>
+      <div className="flex flex-col items-center">
+        <motion.span
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
+          className="text-4xl font-extrabold tabular-nums"
+          style={{ fontFamily: 'var(--font-heading)', color }}
+        >{pct}%</motion.span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Results Screen ───────────────────────────────────────────────────
 function ResultsScreen({ score, total, elapsed, shareId, participantName, review, showLeaderboard, showAnswers }: {
   score: number; total: number; elapsed: number; shareId: string;
@@ -451,54 +491,24 @@ function ResultsScreen({ score, total, elapsed, shareId, participantName, review
     if (isGreat) {
       const duration = 3000;
       const end = Date.now() + duration;
-
       const frame = () => {
-        confetti({
-          particleCount: 5,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-          colors: ['#8B5CF6', '#3B82F6', '#10B981']
-        });
-        confetti({
-          particleCount: 5,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-          colors: ['#8B5CF6', '#3B82F6', '#10B981']
-        });
-
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
+        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#8B5CF6', '#3B82F6', '#10B981'] });
+        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#8B5CF6', '#3B82F6', '#10B981'] });
+        if (Date.now() < end) requestAnimationFrame(frame);
       };
       frame();
     }
-  }, [isGreat]);
+    // Record progress
+    recordQuizCompletion(pct);
+  }, [isGreat, pct]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
       className="flex flex-col items-center text-center"
     >
-      {/* Trophy */}
-      <motion.div
-        initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }}
-        transition={{ duration: 0.55, delay: 0.05, type: 'spring', stiffness: 180 }}
-        className="w-24 h-24 rounded-3xl flex items-center justify-center mb-5"
-        style={{
-          background: isGreat
-            ? 'linear-gradient(135deg, rgba(251,191,36,0.22), rgba(245,158,11,0.1))'
-            : isOk
-              ? 'linear-gradient(135deg, rgba(37,99,235,0.22), rgba(99,102,241,0.1))'
-              : 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))',
-          border: `1px solid ${isGreat ? 'rgba(251,191,36,0.4)' : 'rgba(59,130,246,0.3)'}`,
-          boxShadow: isGreat ? '0 0 40px rgba(251,191,36,0.18)' : '0 0 40px rgba(37,99,235,0.18)',
-        }}>
-        {pct === 100
-          ? <Star size={40} style={{ color: '#FBBF24' }} fill="#FBBF24" />
-          : <Trophy size={40} style={{ color: isGreat ? '#FBBF24' : '#60A5FA' }} />}
-      </motion.div>
+      {/* Animated Score Ring */}
+      <ScoreRing pct={pct} isGreat={isGreat} isOk={isOk} />
 
       <motion.h2 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         className="text-4xl md:text-5xl font-extrabold mb-2" style={{ fontFamily: 'var(--font-heading)', color: '#FFFFFF' }}>
@@ -509,15 +519,14 @@ function ResultsScreen({ score, total, elapsed, shareId, participantName, review
         {participantName} · {msg.sub}
       </motion.p>
 
-      {/* Score ring + stats */}
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.25 }}
+      {/* Score stats */}
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.35 }}
         className="flex items-stretch gap-0 mb-8 rounded-3xl border w-full max-w-sm overflow-hidden backdrop-blur-md relative"
         style={{ background: 'rgba(20, 20, 25, 0.6)', borderColor: 'rgba(255,255,255,0.05)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' }}>
         <div className="absolute inset-0 pointer-events-none opacity-20"
             style={{ background: 'radial-gradient(circle at top, rgba(139, 92, 246, 0.4) 0%, transparent 80%)' }} />
         {[
           { label: 'Score', value: `${score}/${total}`, color: '#FFFFFF' },
-          { label: 'Accuracy', value: `${pct}%`, color: isGreat ? '#10B981' : isOk ? '#3B82F6' : '#EF4444' },
           { label: 'Time', value: formatTime(elapsed), color: '#A78BFA' },
         ].map((stat, i) => (
           <div key={stat.label} className="flex-1 flex flex-col items-center py-6 relative z-10">
@@ -731,6 +740,29 @@ export default function QuizSharePage() {
     return 'idle';
   };
 
+  // Keyboard navigation
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    const handler = (e: KeyboardEvent) => {
+      // Select option: 1-4 or a-d
+      if (!answered) {
+        const numMap: Record<string, number> = { '1': 0, '2': 1, '3': 2, '4': 3 };
+        const alphaMap: Record<string, number> = { 'a': 0, 'b': 1, 'c': 2, 'd': 3 };
+        const key = e.key.toLowerCase();
+        const idx = numMap[e.key] ?? alphaMap[key];
+        if (idx !== undefined && quiz) handleSelect(idx);
+      } else {
+        // Advance: Enter or Space
+        if ((e.key === 'Enter' || e.key === ' ') && !submitting) {
+          e.preventDefault();
+          handleNext();
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [phase, answered, submitting, quiz, handleSelect, handleNext]);
+
   const settings = quiz?.settings;
   const timeLimitTotal = settings?.timeLimitSeconds ?? 0;
   const isTimerWarning = timeLimitTotal > 0 && questionTimeLeft <= Math.min(5, timeLimitTotal * 0.2);
@@ -843,12 +875,21 @@ export default function QuizSharePage() {
                         transition={{ duration: 0.28, ease: 'easeOut' as const }}
                       >
                         {/* Question card */}
-                        <div className="rounded-3xl p-8 sm:p-10 mb-8 border backdrop-blur-xl relative overflow-hidden group"
+                        <div className="rounded-3xl p-8 sm:p-10 mb-8 border backdrop-blur-xl relative overflow-hidden group transition-all duration-500"
                           style={{
                             background: 'rgba(20, 20, 25, 0.6)',
-                            borderColor: 'rgba(255,255,255,0.05)',
-                            boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+                            borderColor: answered && correctOption !== null
+                              ? (selectedOption === correctOption ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.35)')
+                              : 'rgba(255,255,255,0.05)',
+                            boxShadow: answered && correctOption !== null
+                              ? (selectedOption === correctOption ? '0 0 40px rgba(16,185,129,0.12)' : '0 0 40px rgba(239,68,68,0.10)')
+                              : '0 20px 50px rgba(0,0,0,0.3)',
                           }}>
+                          {/* Keyboard hint — desktop only */}
+                          <div className="absolute bottom-4 right-4 hidden md:flex items-center gap-1 text-[10px] text-white/10">
+                            <Keyboard size={10} />
+                            <span>1-4 or A-D to select</span>
+                          </div>
                           {/* Animated background accent */}
                           <div className="absolute -top-24 -right-24 w-48 h-48 pointer-events-none opacity-10 blur-3xl rounded-full"
                             style={{ background: 'radial-gradient(circle, #6366F1, transparent)' }} />
@@ -915,8 +956,11 @@ export default function QuizSharePage() {
                       {answered && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                           transition={{ duration: 0.22, delay: 0.08 }}
-                          className="mt-5 flex justify-end"
+                          className="mt-5 flex justify-end items-center gap-4"
                         >
+                          <span className="hidden md:flex items-center gap-1 text-[10px] text-white/15">
+                            <span className="px-1.5 py-0.5 rounded border border-white/10 text-[9px] font-mono">Enter</span> to continue
+                          </span>
                           <button onClick={handleNext} disabled={submitting}
                             className="relative overflow-hidden group flex items-center gap-2 px-7 py-3.5 rounded-2xl text-sm font-semibold text-white transition-all duration-200 hover:scale-105 disabled:opacity-60"
                             style={{ background: 'linear-gradient(135deg, #2563EB, #4F46E5)', boxShadow: '0 0 28px rgba(37,99,235,0.38)' }}

@@ -4,9 +4,11 @@ import QuizSharePage from './pages/quiz/ShareId';
 import QuizCreatedPage from './pages/quiz/created';
 import ResultsPage from './pages/results/ShareId';
 import GuideViewPage from './pages/guide/ShareId';
+import RevisionPage from './pages/guide/Revision';
+import FlashcardsPage from './pages/guide/Flashcards';
 import NotFoundPage from './pages/_404';
 
-export type Path = '/' | '/quiz/created' | '/quiz/:shareId' | '/results/:shareId' | '/guide/:shareId';
+export type Path = '/' | '/quiz/created' | '/quiz/:shareId' | '/results/:shareId' | '/guide/:shareId' | '/guide/:shareId/revision' | '/guide/:shareId/flashcards';
 export type Params = Record<string, string | undefined>;
 
 export const routes: RouteObject[] = [
@@ -29,6 +31,14 @@ export const routes: RouteObject[] = [
   {
     path: '/guide/:shareId',
     element: <GuideViewPage />,
+  },
+  {
+    path: '/guide/:shareId/revision',
+    element: <RevisionPage />,
+  },
+  {
+    path: '/guide/:shareId/flashcards',
+    element: <FlashcardsPage />,
   },
   {
     path: '*',
