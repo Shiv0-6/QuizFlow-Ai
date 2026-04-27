@@ -24,11 +24,12 @@ interface QuizQuestion {
 
 export default async function handler(req: Request, res: Response) {
   const apiKey = getSecret('OPENROUTER_API_KEY');
+  const placeholderKey = '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';
 
-  if (!apiKey) {
+  if (!apiKey || apiKey === placeholderKey) {
     return res.status(503).json({
       error: 'no_api_key',
-      message: 'OpenRouter API key is not configured.',
+      message: 'You are using a placeholder API key. Please replace it with your personal key from openrouter.ai in the .env file.',
     });
   }
 
@@ -84,7 +85,7 @@ Return ONLY a JSON array with this exact structure (no markdown, no code fences)
 
   try {
     const completion = await client.chat.completions.create({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'google/gemini-2.0-flash-001',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -138,16 +139,16 @@ Return ONLY a JSON array with this exact structure (no markdown, no code fences)
 
     return res.json({ questions: validated });
   } catch (err: unknown) {
+    console.error('[generate-quiz] OpenRouter Error Details:', JSON.stringify(err, null, 2));
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[generate-quiz] OpenRouter error:', message);
 
     if (message.includes('401') || message.includes('Unauthorized')) {
-      return res.status(401).json({ error: 'invalid_api_key', message: 'Invalid OpenRouter API key. Please check your key in Settings → Secrets.' });
+      return res.status(401).json({ error: 'invalid_api_key', message: 'Invalid OpenRouter API key. Please check your key in Settings.' });
     }
     if (message.includes('429')) {
       return res.status(429).json({ error: 'rate_limit', message: 'Rate limit reached. Please try again in a moment.' });
     }
 
-    return res.status(500).json({ error: 'generation_failed', message: 'Failed to generate quiz. Please try again.' });
+    return res.status(500).json({ error: 'generation_failed', message: `Failed to generate quiz: ${message}` });
   }
 }

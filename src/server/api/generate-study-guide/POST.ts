@@ -15,12 +15,13 @@ function getSecret(key: string): string | undefined {
 }
 
 export default async function handler(req: Request, res: Response) {
-  const apiKey = getSecret('OPENROUTER_API_KEY');
+  const apiKey = getSecret('OPENROUTER_API_KEY') || getSecret('OPENAI_API_KEY');
+  const placeholderKey = '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';
 
-  if (!apiKey) {
+  if (!apiKey || apiKey === placeholderKey) {
     return res.status(503).json({
       error: 'no_api_key',
-      message: 'OpenRouter API key is not configured.',
+      message: 'You are using a placeholder API key. Please replace it with your personal key from openrouter.ai in the .env file.',
     });
   }
 
@@ -77,7 +78,7 @@ Return ONLY a JSON object with this exact structure:
 
   try {
     const completion = await client.chat.completions.create({
-      model: 'openai/gpt-3.5-turbo', // Faster and good for text generation
+      model: 'google/gemini-2.0-flash-001', 
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -96,8 +97,8 @@ Return ONLY a JSON object with this exact structure:
       return res.status(500).json({ error: 'parse_error', message: 'Failed to parse AI response. Please try again.' });
     }
   } catch (err: unknown) {
+    console.error('[generate-study-guide] OpenRouter Error Details:', JSON.stringify(err, null, 2));
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[generate-study-guide] OpenRouter error:', message);
-    return res.status(500).json({ error: 'generation_failed', message: 'Failed to generate study guide. Please try again.' });
+    return res.status(500).json({ error: 'generation_failed', message: `Failed to generate study guide: ${message}` });
   }
 }

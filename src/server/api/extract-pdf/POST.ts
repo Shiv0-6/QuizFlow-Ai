@@ -27,9 +27,10 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
-    const pdfInstance = new PDFParse();
-    const data = await pdfInstance.parse(fileData.buffer);
+    const pdfInstance = new PDFParse({ data: fileData.buffer });
+    const data = await pdfInstance.getText();
     const text = data.text.trim();
+    console.log(`[pdf-extraction] Extracted ${text.length} characters.`);
 
     if (text.length < 50) {
       return res.status(400).json({ 
