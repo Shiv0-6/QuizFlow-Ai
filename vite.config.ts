@@ -30,8 +30,8 @@ export default defineConfig({
   },
 
   build: {
-    ssr: false,              // 👈 disable server-side rendering
-    outDir: "dist",          // 👈 output directly to dist/
+    ssr: false,          // 👈 disable server-side rendering
+    outDir: "dist",      // 👈 output directly to dist/
     rollupOptions: {
       output: {
         manualChunks: {
