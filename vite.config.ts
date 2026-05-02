@@ -16,33 +16,37 @@ function extractHostname(value: string): string {
 	}
 }
 
-function serverBundlePlugin(): Plugin {
-	let built = false;
-	return {
-		name: "server-bundle",
-		apply: "build",
-		closeBundle: async () => {
-			if (built) return;
-			built = true;
-			console.log("Bundling server code with esbuild...");
-			await esbuild.build({
-				entryPoints: [path.resolve(__dirname, "dist", "app.js")],
-				bundle: true,
-				platform: "node",
-				target: "node22",
-				format: "esm",
-				outfile: path.resolve(__dirname, "dist", "server.bundle.mjs"),
-				packages: "bundle",
-				sourcemap: true,
-				banner: {
-					js: `import { createRequire } from 'module';
-const require = createRequire(import.meta.url);`,
-				},
-			});
-			console.log("Server bundle created at dist/server.bundle.mjs");
-		},
-	};
-}
+	function serverBundlePlugin(): Plugin {
+		let built = false;
+		return {
+			name: "server-bundle",
+			apply: "build",
+			closeBundle: async () => {
+				if (built) return;
+				built = true;
+				console.log("Bundling server code with esbuild...");
+				await esbuild.build({
+					entryPoints: [path.resolve(__dirname, "dist", "app.js")],
+					bundle: true,
+					platform: "node",
+					target: "node22",
+					format: "esm",
+					outfile: path.resolve(__dirname, "dist", "server.bundle.mjs"),
+					packages: "bundle",
+					sourcemap: true,
+					banner: {
+						js: `import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);`,
+					},
+				});
+				console.log("Server bundle created at dist/server.bundle.mjs");
+			},
+		};
+	}
 
 const allowedHosts: string[] = [];
 const corsOrigins: string[] = [];
