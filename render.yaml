@@ -1,0 +1,47 @@
+services:
+  # Main web service (frontend + backend)
+  - type: web
+    name: quizflow-ai
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/server.bundle.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: VITE_APP_NAME
+        value: QuizFlow AI
+      - key: VITE_PUBLIC_URL
+        fromService:
+          name: quizflow-ai
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_API_URL
+        fromService:
+          name: quizflow-ai
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+          envVarPath: /api
+      - key: FRONTEND_DOMAIN
+        fromService:
+          name: quizflow-ai
+          type: web
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
+      - key: ALLOWED_ORIGINS
+        fromService:
+          name: quizflow-ai
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+# Optional: PostgreSQL database (uncomment if you want to migrate from SQLite)
+# databases:
+#   - name: quizflow-db
+#     databaseName: quizflow
+#     user: quizflow
+#     plan: free
+#     ipAllowList: []
